@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Theme Park Tycoon</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <!-- Login / Register screen -->
+    <div id="auth-screen" class="screen">
+      <div class="auth-card">
+        <h1>Theme Park Tycoon</h1>
+        <p class="subtitle">Sign in to manage your park</p>
+
+        <div class="tabs">
+          <button class="tab active" data-tab="login">Log in</button>
+          <button class="tab" data-tab="register">Sign up</button>
+        </div>
+
+        <form id="login-form" class="auth-form active">
+          <label>Username<input name="username" autocomplete="username" required /></label>
+          <label>Password<input name="password" type="password" autocomplete="current-password" required /></label>
+          <button type="submit" class="primary">Log in</button>
+          <p class="error" id="login-error"></p>
+        </form>
+
+        <form id="register-form" class="auth-form">
+          <label>Username<input name="username" autocomplete="username" required minlength="2" /></label>
+          <label>Password<input name="password" type="password" autocomplete="new-password" required minlength="4" /></label>
+          <button type="submit" class="primary">Create account</button>
+          <p class="error" id="register-error"></p>
+        </form>
+      </div>
+    </div>
+
+    <!-- Main game screen -->
+    <div id="game-screen" class="screen hidden">
+      <header class="topbar">
+        <div class="brand">🎢 Theme Park Tycoon</div>
+        <div class="stats">
+          <div class="stat"><span class="stat-label">💰 Money</span><span id="stat-money">0</span></div>
+          <div class="stat"><span class="stat-label">👥 Visitors</span><span id="stat-visitors">0</span></div>
+          <div class="stat"><span class="stat-label">😊 Happiness</span><span id="stat-happiness">0%</span></div>
+          <div class="stat"><span class="stat-label">⭐ Rating</span><span id="stat-rating">0</span></div>
+        </div>
+        <div class="user-area">
+          <span id="current-user"></span>
+          <button id="save-btn" class="ghost">Save</button>
+          <button id="reset-btn" class="ghost">Reset park</button>
+          <button id="logout-btn" class="ghost">Log out</button>
+        </div>
+      </header>
+
+      <main class="game-area">
+        <aside class="sidebar">
+          <h2>Build</h2>
+          <div class="category-tabs">
+            <button class="cat-tab active" data-cat="ride">Rides</button>
+            <button class="cat-tab" data-cat="shop">Shops</button>
+            <button class="cat-tab" data-cat="decoration">Decor</button>
+          </div>
+          <div id="catalog-list" class="catalog-list"></div>
+          <div class="tool-section">
+            <button id="bulldoze-btn" class="tool-btn">🚧 Bulldoze</button>
+            <button id="cancel-btn" class="tool-btn">✋ Cancel</button>
+          </div>
+          <div class="hint" id="build-hint">Pick something to build, then click a grid cell.</div>
+        </aside>
+
+        <section class="park-wrap">
+          <div id="park-grid" class="park-grid"></div>
+          <div id="event-log" class="event-log"></div>
+        </section>
+      </main>
+    </div>
+
+    <script src="content/catalog.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/game.js"></script>
+    <script src="js/main.js"></script>
+  </body>
+</html>
