@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>the goat & the machine that gave it a voice</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,300;1,400;1,600&family=JetBrains+Mono:wght@300;400&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0908;
+    --ink: #e6e1d7;
+    --gold: #c9a14a;
+    --rust: #a23b2c;
+    --dim: #6b6560;
+    --panel: rgba(14,12,10,0.85);
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 300;
+    overflow-x: hidden;
+  }
+
+  /* SVG noise overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0.035;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 256px 256px;
+  }
+
+  /* Radial atmosphere */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background: radial-gradient(ellipse 80% 60% at 50% 40%, rgba(90,60,20,0.08) 0%, transparent 70%);
+  }
+
+  .layout {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 48px 24px 32px;
+    gap: 32px;
+  }
+
+  header {
+    text-align: center;
+  }
+
+  h1 {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-weight: 300;
+    font-size: clamp(1.4rem, 3vw, 2.2rem);
+    letter-spacing: 0.04em;
+    color: var(--ink);
+    line-height: 1.2;
+  }
+
+  h1 .amp {
+    color: var(--gold);
+  }
+
+  .subtitle {
+    margin-top: 8px;
+    font-size: 10px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--dim);
+  }
+
+  /* Panels */
+  .panels {
+    display: flex;
+    gap: 24px;
+    width: 100%;
+    max-width: 1100px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid rgba(201,161,74,0.18);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .panel-label {
+    font-size: 9px;
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    color: var(--gold);
+    border-bottom: 1px solid rgba(201,161,74,0.15);
+    padding-bottom: 8px;
+  }
+
+  /* Canvas area */
+  .canvas-wrap {
+    position: relative;
+    background: #050504;
+    border: 1px solid rgba(230,225,215,0.08);
+    cursor: crosshair;
+    flex-shrink: 0;
+  }
+
+  canvas {
+    display: block;
+  }
+
+  #mainCanvas {
+    max-width: min(600px, 80vw);
+    max-height: 480px;
+  }
+
+  /* Buttons */
+  .btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 400;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--ink);
+    background: transparent;
+    border: 1px solid rgba(230,225,215,0.3);
+    padding: 10px 18px;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+    width: 100%;
+  }
+
+  .btn:hover { border-color: var(--gold); color: var(--gold); }
+  .btn:active { opacity: 0.7; }
+  .btn.danger { border-color: rgba(162,59,44,0.4); color: var(--rust); }
+  .btn.danger:hover { border-color: var(--rust); }
+  .btn.active { border-color: var(--gold); color: var(--gold); }
+  .btn:disabled { opacity: 0.3; cursor: default; }
+
+  /* File inputs hidden, triggered by button */
+  input[type="file"] { display: none; }
+
+  /* Text area */
+  textarea {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 300;
+    background: rgba(0,0,0,0.4);
+    border: 1px solid rgba(230,225,215,0.15);
+    color: var(--ink);
+    padding: 10px;
+    resize: vertical;
+    width: 100%;
+    min-height: 80px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  textarea:focus { border-color: rgba(201,161,74,0.4); }
+  textarea::placeholder { color: var(--dim); }
+
+  /* Select */
+  select {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    background: rgba(0,0,0,0.5);
+    border: 1px solid rgba(230,225,215,0.2);
+    color: var(--ink);
+    padding: 8px 10px;
+    width: 100%;
+    outline: none;
+    appearance: none;
+    cursor: pointer;
+  }
+
+  /* Status bar */
+  .status {
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    color: var(--dim);
+    min-height: 16px;
+  }
+  .status.warn { color: var(--gold); }
+  .status.err { color: var(--rust); }
+  .status.ok { color: #7aab6a; }
+
+  /* RMS meter */
+  .meter {
+    width: 100%;
+    height: 3px;
+    background: rgba(255,255,255,0.06);
+    position: relative;
+    overflow: hidden;
+  }
+  .meter-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--gold), var(--rust));
+    transition: width 0.05s;
+  }
+
+  .controls-col {
+    width: 260px;
+    flex-shrink: 0;
+  }
+
+  .row { display: flex; gap: 8px; }
+  .row .btn { flex: 1; }
+
+  /* Dashed separator */
+  hr.dim {
+    border: none;
+    border-top: 1px solid rgba(230,225,215,0.07);
+    margin: 4px 0;
+  }
+
+  footer {
+    text-align: center;
+    color: var(--dim);
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-size: 14px;
+    letter-spacing: 0.05em;
+    margin-top: auto;
+    padding-top: 16px;
+  }
+
+  /* Phase indicator dots */
+  .phases {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .phase-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--dim);
+    transition: background 0.3s;
+  }
+  .phase-dot.done { background: var(--gold); }
+  .phase-dot.active { background: var(--ink); box-shadow: 0 0 6px rgba(230,225,215,0.5); }
+</style>
+</head>
+<body>
+<div class="layout">
+  <header>
+    <h1>the goat <span class="amp">&amp;</span> the machine that gave it a voice</h1>
+    <p class="subtitle">lipsync engine &nbsp;·&nbsp; polygon mouth rig &nbsp;·&nbsp; audio analysis</p>
+  </header>
+
+  <div class="panels">
+    <!-- Canvas column -->
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div class="panel" style="padding:12px;">
+        <div class="panel-label">stage</div>
+        <div class="canvas-wrap" id="canvasWrap">
+          <canvas id="mainCanvas" width="600" height="450"></canvas>
+        </div>
+        <div class="status" id="canvasStatus">load an image to begin</div>
+        <div class="meter"><div class="meter-fill" id="meterFill"></div></div>
+      </div>
+    </div>
+
+    <!-- Controls column -->
+    <div class="controls-col">
+
+      <!-- Step 1: Image -->
+      <div class="panel">
+        <div class="panel-label" style="display:flex;justify-content:space-between;align-items:center;">
+          <span>01 &nbsp;image</span>
+          <div class="phases">
+            <div class="phase-dot active" id="dot1"></div>
+            <div class="phase-dot" id="dot2"></div>
+            <div class="phase-dot" id="dot3"></div>
+          </div>
+        </div>
+        <input type="file" id="imgFile" accept="image/*">
+        <button class="btn" onclick="document.getElementById('imgFile').click()">[ load image ]</button>
+      </div>
+
+      <!-- Step 2: Polygon -->
+      <div class="panel">
+        <div class="panel-label">02 &nbsp;mouth polygon</div>
+        <div class="status" id="polyStatus">—</div>
+        <div class="row">
+          <button class="btn" id="btnDraw" onclick="startDrawing()" disabled>[ draw ]</button>
+          <button class="btn danger" id="btnClear" onclick="clearPolygon()" disabled>[ clear ]</button>
+        </div>
+        <div style="font-size:9px;color:var(--dim);line-height:1.6;">
+          click to place points · enter or dbl-click to close · esc to cancel
+        </div>
+      </div>
+
+      <!-- Step 3: Audio -->
+      <div class="panel">
+        <div class="panel-label">03 &nbsp;voice</div>
+
+        <div style="font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--dim);">tts text</div>
+        <textarea id="ttsText" placeholder="type something the creature will say...">The ancient goat stares into the void and speaks in tongues only the machine can translate.</textarea>
+
+        <select id="voiceSelect"><option value="">— choose a voice —</option></select>
+
+        <div class="row">
+          <button class="btn" id="btnSpeak" onclick="speak()" disabled>[ speak ]</button>
+          <button class="btn danger" onclick="stopAll()">[ stop ]</button>
+        </div>
+
+        <hr class="dim">
+
+        <div style="font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--dim);">or upload audio</div>
+        <input type="file" id="audioFile" accept="audio/*">
+        <button class="btn" id="btnAudio" onclick="document.getElementById('audioFile').click()" disabled>[ load audio ]</button>
+        <button class="btn" id="btnPlay" onclick="playAudio()" disabled>[ play audio ]</button>
+      </div>
+
+      <!-- Status -->
+      <div class="panel">
+        <div class="panel-label">system</div>
+        <div class="status" id="sysStatus">awaiting input</div>
+      </div>
+
+    </div>
+  </div>
+
+  <footer>
+    <em>"every animal has a voice — some simply require an intermediary"</em>
+  </footer>
+</div>
+
+<script>
+// ─── State ────────────────────────────────────────────────────────────────────
+const state = {
+  image: null,           // HTMLImageElement
+  imgNaturalW: 0,
+  imgNaturalH: 0,
+  canvasW: 600,
+  canvasH: 450,
+  scaleX: 1,
+  scaleY: 1,
+  offsetX: 0,
+  offsetY: 0,
+
+  drawing: false,
+  polygon: [],           // [{x,y}] in canvas coords
+  polyClosed: false,
+
+  mouseX: 0,
+  mouseY: 0,
+
+  // Audio
+  audioCtx: null,
+  analyser: null,
+  sourceNode: null,
+  audioBuffer: null,
+  audioStartTime: 0,
+
+  // TTS animation
+  ttsAnimId: null,
+  ttsWordDuration: 0.3,
+  ttsPhase: 0,
+  ttsLastBoundary: 0,
+
+  // Lipsync
+  openAmount: 0,
+  animId: null,
+  running: false,
+};
+
+// ─── Canvas Setup ─────────────────────────────────────────────────────────────
+const canvas = document.getElementById('mainCanvas');
+const ctx = canvas.getContext('2d');
+
+function resizeCanvas(w, h) {
+  const maxW = Math.min(600, window.innerWidth * 0.80);
+  const maxH = 480;
+  const aspect = w / h;
+  let cw = maxW, ch = maxW / aspect;
+  if (ch > maxH) { ch = maxH; cw = maxH * aspect; }
+  cw = Math.round(cw); ch = Math.round(ch);
+  canvas.width = cw; canvas.height = ch;
+  canvas.style.width = cw + 'px'; canvas.style.height = ch + 'px';
+  state.canvasW = cw; state.canvasH = ch;
+  state.scaleX = cw / w; state.scaleY = ch / h;
+}
+
+// ─── Image Loading ─────────────────────────────────────────────────────────────
+document.getElementById('imgFile').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    state.image = img;
+    state.imgNaturalW = img.naturalWidth;
+    state.imgNaturalH = img.naturalHeight;
+    resizeCanvas(img.naturalWidth, img.naturalHeight);
+    clearPolygon();
+    drawFrame();
+    setStatus('canvasStatus', 'image loaded — draw the mouth polygon');
+    setStatus('polyStatus', 'ready to draw');
+    document.getElementById('btnDraw').disabled = false;
+    setPhase(2);
+    URL.revokeObjectURL(url);
+  };
+  img.src = url;
+});
+
+// ─── Polygon Drawing ───────────────────────────────────────────────────────────
+function startDrawing() {
+  if (!state.image) return;
+  clearPolygon();
+  state.drawing = true;
+  state.polyClosed = false;
+  setStatus('polyStatus', 'click to place points...');
+  setStatus('canvasStatus', 'click to place mouth points');
+  document.getElementById('btnDraw').classList.add('active');
+}
+
+function clearPolygon() {
+  state.polygon = [];
+  state.drawing = false;
+  state.polyClosed = false;
+  state.openAmount = 0;
+  document.getElementById('btnDraw').classList.remove('active');
+  document.getElementById('btnClear').disabled = true;
+  document.getElementById('btnSpeak').disabled = !state.image;
+  document.getElementById('btnAudio').disabled = !state.image;
+  setStatus('polyStatus', state.image ? 'ready to draw' : '—');
+  setStatus('canvasStatus', state.image ? 'image loaded — draw the mouth polygon' : 'load an image to begin');
+  drawFrame();
+}
+
+function closePolygon() {
+  if (state.polygon.length < 3) {
+    setStatus('polyStatus', 'need at least 3 points');
+    return;
+  }
+  state.drawing = false;
+  state.polyClosed = true;
+  document.getElementById('btnDraw').classList.remove('active');
+  document.getElementById('btnClear').disabled = false;
+  document.getElementById('btnSpeak').disabled = false;
+  document.getElementById('btnPlay').disabled = !state.audioBuffer;
+  setStatus('polyStatus', `polygon closed — ${state.polygon.length} pts`);
+  setStatus('canvasStatus', 'mouth rig ready');
+  setPhase(3);
+  drawFrame();
+}
+
+// Canvas mouse events
+canvas.addEventListener('mousemove', e => {
+  const r = canvas.getBoundingClientRect();
+  state.mouseX = e.clientX - r.left;
+  state.mouseY = e.clientY - r.top;
+  if (state.drawing) drawFrame();
+});
+
+canvas.addEventListener('click', e => {
+  if (!state.drawing) return;
+  const r = canvas.getBoundingClientRect();
+  const x = e.clientX - r.left;
+  const y = e.clientY - r.top;
+
+  // Check close on first point
+  if (state.polygon.length >= 3) {
+    const fp = state.polygon[0];
+    const dist = Math.hypot(x - fp.x, y - fp.y);
+    if (dist < 12) { closePolygon(); return; }
+  }
+
+  state.polygon.push({ x, y });
+  setStatus('polyStatus', `${state.polygon.length} points placed`);
+  drawFrame();
+});
+
+canvas.addEventListener('dblclick', e => {
+  if (state.drawing) closePolygon();
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && state.drawing) { e.preventDefault(); closePolygon(); }
+  if (e.key === 'Escape') { if (state.drawing) startDrawing(); }
+});
+
+// ─── Drawing Engine ────────────────────────────────────────────────────────────
+function drawFrame() {
+  const { canvasW: W, canvasH: H } = state;
+  ctx.clearRect(0, 0, W, H);
+
+  if (!state.image) {
+    ctx.fillStyle = '#050504';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = 'rgba(201,161,74,0.3)';
+    ctx.font = '11px JetBrains Mono';
+    ctx.textAlign = 'center';
+    ctx.fillText('[ load an image ]', W / 2, H / 2);
+    return;
+  }
+
+  // Draw base image
+  ctx.drawImage(state.image, 0, 0, W, H);
+
+  if (state.polyClosed && state.polygon.length >= 3 && state.running) {
+    drawLipsync();
+  }
+
+  // Draw polygon overlay
+  drawPolygonOverlay();
+}
+
+function drawPolygonOverlay() {
+  const poly = state.polygon;
+  if (poly.length === 0) return;
+
+  ctx.save();
+  ctx.strokeStyle = 'rgba(201,161,74,0.8)';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([4, 4]);
+
+  // Draw edges
+  ctx.beginPath();
+  ctx.moveTo(poly[0].x, poly[0].y);
+  for (let i = 1; i < poly.length; i++) ctx.lineTo(poly[i].x, poly[i].y);
+
+  if (state.polyClosed) {
+    ctx.closePath();
+    ctx.strokeStyle = 'rgba(201,161,74,0.5)';
+    ctx.fillStyle = 'rgba(201,161,74,0.05)';
+    ctx.fill();
+    ctx.setLineDash([]);
+  }
+  ctx.stroke();
+
+  // Guide line to cursor while drawing
+  if (state.drawing && poly.length > 0) {
+    const last = poly[poly.length - 1];
+    ctx.beginPath();
+    ctx.moveTo(last.x, last.y);
+    ctx.lineTo(state.mouseX, state.mouseY);
+    ctx.strokeStyle = 'rgba(201,161,74,0.35)';
+    ctx.setLineDash([3, 6]);
+    ctx.stroke();
+
+    // Line back to first point (close hint)
+    if (poly.length >= 3) {
+      const dist = Math.hypot(state.mouseX - poly[0].x, state.mouseY - poly[0].y);
+      ctx.beginPath();
+      ctx.moveTo(state.mouseX, state.mouseY);
+      ctx.lineTo(poly[0].x, poly[0].y);
+      ctx.strokeStyle = dist < 12
+        ? 'rgba(201,161,74,0.7)'
+        : 'rgba(201,161,74,0.12)';
+      ctx.stroke();
+    }
+  }
+
+  // Points
+  ctx.setLineDash([]);
+  for (let i = 0; i < poly.length; i++) {
+    const p = poly[i];
+    const isFirst = i === 0;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, isFirst ? 5 : 3, 0, Math.PI * 2);
+    ctx.fillStyle = isFirst ? 'rgba(201,161,74,0.9)' : 'rgba(230,225,215,0.7)';
+    ctx.fill();
+  }
+
+  ctx.restore();
+}
+
+function drawLipsync() {
+  const poly = state.polygon;
+  const open = state.openAmount; // 0..1
+
+  // Compute bounding box
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const p of poly) {
+    if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
+    if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
+  }
+  const bw = maxX - minX, bh = maxY - minY;
+  const midY = (minY + maxY) / 2;
+  const shift = open * bh * 0.55;
+
+  // Create polygon clip path helper
+  function polyPath() {
+    ctx.beginPath();
+    ctx.moveTo(poly[0].x, poly[0].y);
+    for (let i = 1; i < poly.length; i++) ctx.lineTo(poly[i].x, poly[i].y);
+    ctx.closePath();
+  }
+
+  ctx.save();
+
+  // ── Dark throat fill (behind split halves) ──────────────────────────────────
+  polyPath();
+  ctx.clip();
+  const grd = ctx.createRadialGradient(
+    (minX + maxX) / 2, (minY + maxY) / 2, 0,
+    (minX + maxX) / 2, (minY + maxY) / 2, Math.max(bw, bh) * 0.7
+  );
+  grd.addColorStop(0, '#1a0808');
+  grd.addColorStop(0.45, '#3a1410');
+  grd.addColorStop(1, '#000000');
+  ctx.fillStyle = grd;
+  ctx.fillRect(minX, minY, bw, bh);
+
+  ctx.restore();
+
+  if (open < 0.015) return; // closed — just show image
+
+  // ── Top half — source image shifted up ─────────────────────────────────────
+  ctx.save();
+  polyPath();
+  ctx.clip();
+
+  // Clip to top half
+  ctx.beginPath();
+  ctx.rect(minX - 2, minY - 2, bw + 4, midY - minY + 2);
+  ctx.clip();
+
+  ctx.drawImage(
+    state.image,
+    minX / state.scaleX,          // sx
+    (minY - shift) / state.scaleY, // sy  — shifted up in source space
+    bw / state.scaleX,
+    (bh / 2 + shift) / state.scaleY,
+    minX,
+    minY - shift,
+    bw,
+    bh / 2 + shift
+  );
+
+  ctx.restore();
+
+  // ── Bottom half — source image shifted down ────────────────────────────────
+  ctx.save();
+  polyPath();
+  ctx.clip();
+
+  ctx.beginPath();
+  ctx.rect(minX - 2, midY - 2, bw + 4, bh / 2 + shift + 4);
+  ctx.clip();
+
+  ctx.drawImage(
+    state.image,
+    minX / state.scaleX,
+    (midY) / state.scaleY,
+    bw / state.scaleX,
+    (bh / 2 + shift) / state.scaleY,
+    minX,
+    midY + shift,
+    bw,
+    bh / 2 + shift
+  );
+
+  ctx.restore();
+}
+
+// ─── Audio Analysis ────────────────────────────────────────────────────────────
+function ensureAudioCtx() {
+  if (!state.audioCtx) {
+    state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (state.audioCtx.state === 'suspended') state.audioCtx.resume();
+  if (!state.analyser) {
+    state.analyser = state.audioCtx.createAnalyser();
+    state.analyser.fftSize = 512;
+    state.analyser.connect(state.audioCtx.destination);
+  }
+}
+
+document.getElementById('audioFile').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  setStatus('sysStatus', 'decoding audio...');
+  ensureAudioCtx();
+  const ab = await file.arrayBuffer();
+  try {
+    state.audioBuffer = await state.audioCtx.decodeAudioData(ab);
+    document.getElementById('btnPlay').disabled = !state.polyClosed;
+    setStatus('sysStatus', `audio loaded — ${state.audioBuffer.duration.toFixed(1)}s`);
+  } catch(err) {
+    setStatus('sysStatus', 'audio decode failed', 'err');
+  }
+});
+
+async function playAudio() {
+  if (!state.audioBuffer || !state.polyClosed) return;
+  stopAll();
+  ensureAudioCtx();
+
+  const src = state.audioCtx.createBufferSource();
+  src.buffer = state.audioBuffer;
+  src.connect(state.analyser);
+  src.start(0);
+  state.sourceNode = src;
+  state.running = true;
+  setStatus('sysStatus', 'playing audio...');
+
+  const timeDomain = new Float32Array(state.analyser.fftSize);
+
+  function loop() {
+    state.analyser.getFloatTimeDomainData(timeDomain);
+    let sum = 0;
+    for (let i = 0; i < timeDomain.length; i++) sum += timeDomain[i] * timeDomain[i];
+    const rms = Math.sqrt(sum / timeDomain.length);
+    const target = Math.min(1, rms * 8);
+    state.openAmount = state.openAmount * 0.6 + target * 0.4;
+    document.getElementById('meterFill').style.width = (state.openAmount * 100) + '%';
+    drawFrame();
+    state.animId = requestAnimationFrame(loop);
+  }
+
+  src.onended = () => {
+    cancelAnimationFrame(state.animId);
+    state.running = false;
+    state.openAmount = 0;
+    drawFrame();
+    setStatus('sysStatus', 'playback complete');
+  };
+
+  loop();
+}
+
+// ─── Browser TTS ──────────────────────────────────────────────────────────────
+const voiceSelect = document.getElementById('voiceSelect');
+let voices = [];
+
+function populateVoices() {
+  voices = speechSynthesis.getVoices();
+  voiceSelect.innerHTML = '<option value="">— choose a voice —</option>';
+  voices.forEach((v, i) => {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = `${v.name} (${v.lang})`;
+    voiceSelect.appendChild(opt);
+  });
+}
+
+speechSynthesis.onvoiceschanged = populateVoices;
+populateVoices();
+
+function speak() {
+  if (!state.polyClosed) { setStatus('sysStatus', 'draw the mouth polygon first', 'warn'); return; }
+  stopAll();
+
+  const text = document.getElementById('ttsText').value.trim();
+  if (!text) return;
+
+  const utter = new SpeechSynthesisUtterance(text);
+  const vi = voiceSelect.value;
+  if (vi !== '') utter.voice = voices[parseInt(vi)];
+
+  // Estimate word rate
+  const words = text.split(/\s+/).length;
+  const estDuration = Math.max(2, words * 0.4); // rough estimate
+  state.ttsWordDuration = estDuration / words;
+  state.ttsPhase = 0;
+  state.ttsLastBoundary = performance.now();
+  state.running = true;
+
+  utter.onboundary = e => {
+    if (e.name === 'word') {
+      const now = performance.now();
+      const elapsed = (now - state.ttsLastBoundary) / 1000;
+      state.ttsWordDuration = Math.max(0.1, elapsed);
+      state.ttsLastBoundary = now;
+      state.ttsPhase = 0;
+    }
+  };
+
+  utter.onend = () => {
+    state.running = false;
+    cancelAnimationFrame(state.animId);
+    state.openAmount = 0;
+    drawFrame();
+    setStatus('sysStatus', 'speech complete');
+  };
+
+  utter.onerror = () => {
+    state.running = false;
+    setStatus('sysStatus', 'TTS error', 'err');
+  };
+
+  speechSynthesis.speak(utter);
+  setStatus('sysStatus', 'speaking...');
+
+  function ttsLoop() {
+    if (!state.running) return;
+    const now = performance.now();
+    const elapsed = (now - state.ttsLastBoundary) / 1000;
+    const freq = 1 / Math.max(0.15, state.ttsWordDuration);
+    const t = elapsed * freq * Math.PI;
+    const sine = Math.max(0, Math.sin(t));
+    // Add per-word noise
+    const noise = Math.random() * 0.2;
+    const raw = sine * 0.75 + noise * 0.25;
+    state.openAmount = state.openAmount * 0.5 + raw * 0.5;
+    document.getElementById('meterFill').style.width = (state.openAmount * 100) + '%';
+    drawFrame();
+    state.animId = requestAnimationFrame(ttsLoop);
+  }
+  ttsLoop();
+}
+
+function stopAll() {
+  speechSynthesis.cancel();
+  if (state.sourceNode) {
+    try { state.sourceNode.stop(); } catch(e) {}
+    state.sourceNode = null;
+  }
+  cancelAnimationFrame(state.animId);
+  state.running = false;
+  state.openAmount = 0;
+  document.getElementById('meterFill').style.width = '0%';
+  if (state.image) drawFrame();
+  setStatus('sysStatus', 'stopped');
+}
+
+// ─── Utilities ────────────────────────────────────────────────────────────────
+function setStatus(id, msg, cls) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.className = 'status' + (cls ? ' ' + cls : '');
+}
+
+function setPhase(n) {
+  for (let i = 1; i <= 3; i++) {
+    const dot = document.getElementById('dot' + i);
+    if (i < n) dot.className = 'phase-dot done';
+    else if (i === n) dot.className = 'phase-dot active';
+    else dot.className = 'phase-dot';
+  }
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+drawFrame();
+</script>
+</body>
+</html>
